@@ -1,0 +1,7 @@
+boto3==1.17.69
+torch
+streamlit
+transformers
+PyPDF4
+flask
+textblob

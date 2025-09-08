@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+  <title>Legal Compliance Checker</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    h1 { color: #2c3e50; }
+    textarea { width: 100%; height: 150px; margin-bottom: 10px; padding: 10px; font-size: 14px; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #2ecc71; color: white; border: none; border-radius: 5px; }
+    button:hover { background: #27ae60; }
+    #contractText { padding: 10px; border: 1px solid #ddd; margin-top: 20px; white-space: pre-wrap; min-height: 100px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    .highlight { background-color: yellow; color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>📝 Legal Compliance Checker</h1>
+
+  <p>Paste your contract text below and click <b>Check Compliance</b>.</p>
+
+  <textarea id="contractInput" placeholder="Paste contract text here..."></textarea><br>
+  <button onclick="checkCompliance()">Check Compliance</button>
+
+  <h2>📑 Highlighted Contract</h2>
+  <div id="contractText">Your analyzed contract will appear here...</div>
+
+  <h2>⚖️ Detected Violations</h2>
+  <pre id="violations">No checks performed yet.</pre>
+
+  <script>
+    async function checkCompliance() {
+      const text = document.getElementById("contractInput").value;
+      document.getElementById("contractText").innerHTML = "Analyzing... ⏳";
+      document.getElementById("violations").innerHTML = "";
+
+      try {
+        const res = await fetch("/check_compliance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text })
+        });
+
+        const data = await res.json();
+
+        // Display highlighted text
+        document.getElementById("contractText").innerHTML = data.highlighted;
+
+        // Display violations
+        if (typeof data.violations === "string") {
+          document.getElementById("violations").innerText = data.violations;
+        } else {
+          let formatted = "";
+          data.violations.forEach((v, i) => {
+            formatted += `Violation ${i+1}:\nLaw: ${v.law}\nIssue: ${v.issue}\nAnswer: ${v.answer}\nConfidence: ${v.confidence}\nSuggestion: ${v.suggestion}\n\n`;
+          });
+          document.getElementById("violations").innerText = formatted;
+        }
+
+      } catch (err) {
+        document.getElementById("violations").innerText = "Error: " + err;
+        document.getElementById("contractText").innerHTML = text;
+      }
+    }
+  </script>
+</body>
+</html>
