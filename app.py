@@ -2,69 +2,52 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
 import re
 import os
-from transformers import pipeline
 
 # ----------------- Initialize Flask App -----------------
 app = Flask(__name__)
 CORS(app)
 
-# ----------------- Load Legal-BERT QA Pipeline -----------------
-qa_pipeline = pipeline(
-    "question-answering",
-    model="nlpaueb/legal-bert-base-uncased",
-    tokenizer="nlpaueb/legal-bert-base-uncased"
-)
-
-# ----------------- Define Legal Checks -----------------
-LEGAL_CHECKS = [
-    ("Is child labour allowed under 14 years?", "Child Labour (Prohibition and Regulation) Act, 1986, Section 3"),
-    ("Does this contract discriminate by gender, caste, or religion?", "Indian Constitution, Article 15"),
-    ("Does this contract violate minimum wage rules?", "Minimum Wages Act, 1948"),
-    ("Does this contract restrict digital privacy rights?", "Information Technology Act, 2000, Section 43A"),
-    ("Does this contract prevent consumer protection?", "Consumer Protection Act, 2019"),
-]
+# ----------------- Define Lightweight Legal Checks -----------------
+LEGAL_KEYWORDS = {
+    "child labour": "Child Labour (Prohibition and Regulation) Act, 1986, Section 3",
+    "gender discrimination": "Indian Constitution, Article 15",
+    "religion discrimination": "Indian Constitution, Article 15",
+    "caste discrimination": "Indian Constitution, Article 15",
+    "minimum wage": "Minimum Wages Act, 1948",
+    "digital privacy": "Information Technology Act, 2000, Section 43A",
+    "consumer protection": "Consumer Protection Act, 2019"
+}
 
 # ----------------- Helper Functions -----------------
-def highlight_text(text, substring):
+def highlight_text(text, keyword):
     """
-    Highlight sentences containing the substring.
+    Highlight sentences containing the keyword.
     """
     sentences = re.split(r'(?<=[.!?]) +', text)
     for sent in sentences:
-        if substring.lower() in sent.lower():
+        if keyword.lower() in sent.lower():
             highlighted = f'<span style="background-color: yellow; color: red; font-weight: bold;">{sent}</span>'
             text = text.replace(sent, highlighted)
     return text
 
 def check_compliance(text):
     """
-    Run all legal checks on the input text and highlight violations.
+    Run keyword-based legal checks on the input text.
     """
     violations = []
     highlighted_text = text
 
-    for question, law in LEGAL_CHECKS:
-        try:
-            result = qa_pipeline(question=question, context=text)
-            answer = result['answer']
-            score = result['score']
-
-            # Only flag if QA predicts yes/true
-            if answer.lower() in ["yes", "true", "allowed"] and score > 0.5:
-                violations.append({
-                    "law": law,
-                    "issue": question,
-                    "answer": answer,
-                    "confidence": round(score, 2),
-                    "suggestion": "This clause may violate Indian law. Please review."
-                })
-                highlighted_text = highlight_text(highlighted_text, answer)
-
-        except Exception as e:
-            violations.append({"error": str(e)})
+    for keyword, law in LEGAL_KEYWORDS.items():
+        if keyword.lower() in text.lower():
+            violations.append({
+                "law": law,
+                "issue": f"Possible violation related to '{keyword}'",
+                "suggestion": "Please review this clause carefully."
+            })
+            highlighted_text = highlight_text(highlighted_text, keyword)
 
     if not violations:
-        return {"violations": "Compliant ✅ No major legal risks detected.", "highlighted": text}
+        return {"violations": "✅ Compliant. No major legal risks detected.", "highlighted": text}
 
     return {"violations": violations, "highlighted": highlighted_text}
 
